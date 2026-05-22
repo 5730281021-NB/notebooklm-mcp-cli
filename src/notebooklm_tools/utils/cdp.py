@@ -580,9 +580,7 @@ def find_any_existing_cdp_browser(
     return None, None
 
 
-def _get_profile_dir_for_launch(
-    chrome_path: str, profile_name: str = "default"
-) -> Path:
+def _get_profile_dir_for_launch(chrome_path: str, profile_name: str = "default") -> Path:
     """Get the correct Chrome profile directory for launch.
 
     For snap browsers, returns a snap-accessible directory.
@@ -597,6 +595,7 @@ def _get_profile_dir_for_launch(
     """
     if _is_snap_browser(chrome_path):
         from notebooklm_tools.utils.config import get_snap_chrome_profile_dir
+
         snap_common = get_snap_common_dir(chrome_path)
         profile_dir = get_snap_chrome_profile_dir(profile_name, snap_common)
         _logger.debug("Snap browser detected, using snap-accessible profile: %s", profile_dir)
@@ -1088,6 +1087,7 @@ def extract_cookies_via_cdp(
             profile_dir = _get_profile_dir_for_launch(chrome_path, profile_name)
         else:
             from notebooklm_tools.utils.config import get_chrome_profile_dir
+
             profile_dir = get_chrome_profile_dir(profile_name)
         if profile_dir.exists():
             shutil.rmtree(profile_dir, ignore_errors=True)
@@ -1313,6 +1313,7 @@ def has_chrome_profile(profile_name: str = "default") -> bool:
     chrome_path = get_chrome_path()
     if chrome_path and _is_snap_browser(chrome_path):
         from notebooklm_tools.utils.config import get_snap_chrome_profile_dir
+
         snap_common = get_snap_common_dir(chrome_path)
         snap_profile_dir = get_snap_chrome_profile_dir(profile_name, snap_common)
         snap_cookies_file = snap_profile_dir / "Default" / "Cookies"
@@ -1370,6 +1371,7 @@ def cleanup_chrome_profile_cache(profile_name: str = "default") -> int:
     chrome_path = get_chrome_path()
     if chrome_path and _is_snap_browser(chrome_path):
         from notebooklm_tools.utils.config import get_snap_chrome_profile_dir
+
         snap_common = get_snap_common_dir(chrome_path)
         snap_profile_dir = get_snap_chrome_profile_dir(profile_name, snap_common)
         bytes_freed += _clean_profile_dir(snap_profile_dir)

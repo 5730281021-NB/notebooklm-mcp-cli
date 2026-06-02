@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Query returns thinking step instead of short answer (Issue #214)** — When the AI's final answer was under 20 characters, for example `ANSWER: C` from a multiple-choice prompt, `nlm` discarded it and returned the longest thinking chunk instead. The 20-char guard in `_extract_answer_from_chunk` (both the list-form and string-form branches) was redundant with the existing type indicator at `first_elem[4][-1]` (1 = answer, 2 = thinking), which is the authoritative discriminator. Removed both guards. The type indicator still routes short thinking chunks to the thinking bucket, so behavior for normal answers is unchanged. 4 new regression tests in `TestShortAnswerRegression` cover: short answer wins over a longer thinking chunk, single-character answers, short thinking chunks still filtered as thinking, and the string-form first_elem path.
+
 ## [0.6.15] - 2026-06-01
 
 ### Fixed

@@ -205,17 +205,49 @@ def studio_create(
     _now = _time.monotonic()
     _current_mtime = _get_auth_file_mtime()
     if _now >= _auth_guard_expires or _current_mtime != _auth_guard_mtime:
-        auth_valid, auth_reason, auth_error = _studio_auth_is_valid()
-        if not auth_valid:
+        # Liveness check using the SAME tokens get_client() authenticates with
+        # (the unified auth.json dict). We avoid check_auth(live=True) here: it
+        # only does a homepage fetch, which redirects to Google login whenever
+        # the fast-rotating cookies lag behind — a false "expired" that would
+        # block studio creation even though the RPC API still accepts the jar.
+        from ...services.auth import load_cached_tokens
+
+        _auth_ok = False
+        _auth_reason = "no_tokens"
+        try:
+            _cached = load_cached_tokens()
+            if _cached and _cached.cookies:
+                from ...core.client import NotebookLMClient
+
+                _probe = NotebookLMClient(
+                    cookies=_cached.cookies,
+                    csrf_token=_cached.csrf_token or "",
+                    session_id=_cached.session_id or "",
+                    build_label=_cached.build_label or "",
+                )
+                _probe.list_notebooks()
+                _auth_ok = True
+        except Exception as _e:
+            import httpx as _httpx
+
+            if isinstance(_e, (_httpx.TimeoutException, _httpx.RequestError)):
+                # Transport error — don't block on a network blip; let the
+                # actual create call surface any real problem.
+                _auth_ok = True
+            else:
+                _auth_reason = "expired"
+
+        if not _auth_ok:
             _auth_guard_expires = 0.0
             _auth_guard_mtime = 0.0
             return error_result(
-                f"Cannot create {artifact_type}: NotebookLM auth is not valid. "
-                "Run `nlm login` in a terminal to re-authenticate, then retry. "
-                "`refresh_auth()` will NOT help if the tokens are expired — it only reloads them from disk.",
-                hint="nlm login",
-                reason=auth_reason,
-                details=auth_error,
+                f"Cannot create {artifact_type}: NotebookLM auth is not valid "
+                f"(reason: {_auth_reason}). Try `refresh_auth()` first — it will "
+                "attempt a headless re-auth via the nlm login module (using your "
+                "saved Chrome login). If that fails, run `nlm login` in a terminal "
+                "to re-authenticate interactively, then retry.",
+                hint="refresh_auth() or nlm login",
+                reason=_auth_reason,
             )
         _auth_guard_expires = _now + _AUTH_GUARD_TTL
         _auth_guard_mtime = _current_mtime
